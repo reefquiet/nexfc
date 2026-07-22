@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexfy Remote Control</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --accent: #bb86fc;
+            --text: #e0e0e0;
+            --btn-size: 65px;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .header {
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.2);
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: #ff4444;
+            box-shadow: 0 0 5px #ff4444;
+        }
+        .status-online { background: #44ff44; box-shadow: 0 0 5px #44ff44; }
+
+        .container {
+            width: 100%;
+            max-width: 380px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            box-sizing: border-box;
+        }
+
+        .input-box {
+            display: flex; gap: 10px; background: var(--card-bg);
+            padding: 10px; border-radius: 15px; border: 1px solid #333;
+            align-items: center;
+        }
+        input {
+            flex: 1; background: transparent; border: none; color: white;
+            font-size: 16px; outline: none; padding: 5px;
+        }
+        .mic-btn {
+            background: transparent; border: none; color: var(--accent);
+            font-size: 20px; cursor: pointer; padding: 5px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mic-active { color: #ff4444; animation: pulse 1.5s infinite; }
+        .mic-error { color: #888 !important; opacity: 0.5; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .send-btn {
+            background: var(--accent); color: black; border: none;
+            border-radius: 10px; padding: 8px 15px; font-weight: bold;
+        }
+
+        .dpad-container {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 15px; width: 220px; margin: 0 auto;
+        }
+        .btn-circle {
+            width: var(--btn-size); height: var(--btn-size);
+            background: var(--card-bg); border: none; border-radius: 50%;
+            color: white; font-size: 24px; display: flex;
+            align-items: center; justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            transition: transform 0.1s;
+        }
+        .btn-circle:active { transform: scale(0.92); background: #252525; }
+        .btn-ok { background: var(--accent); color: black; font-weight: bold; font-size: 18px; }
+
+        .system-row, .media-row {
+            display: flex; justify-content: space-between; gap: 15px;
+        }
+        .btn-rect {
+            flex: 1; background: var(--card-bg); border: none; border-radius: 15px;
+            color: var(--text); padding: 15px; font-size: 14px; font-weight: bold;
+            text-transform: uppercase; box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .btn-rect:active { transform: scale(0.95); background: #252525; }
+
+        .app-shortcuts {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+        }
+        .app-btn {
+            background: #252525; border: 1px solid #333; border-radius: 15px;
+            padding: 12px; display: flex; flex-direction: column;
+            align-items: center; gap: 8px; font-size: 11px;
+        }
+        .app-icon { width: 30px; height: 30px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="remoteTitle">NEXFY KUMANDA</span>
+    </div>
+
+    <div class="container">
+        <!-- Metin Gönderme -->
+        <div class="input-box">
+            <button id="micBtn" class="mic-btn" onclick="toggleVoice()">🎙️</button>
+            <input type="text" id="textInput" placeholder="TV'ye yaz...">
+            <button class="send-btn" onclick="sendText()">Yolla</button>
+        </div>
+
+        <!-- Yön Tuşları -->
+        <div class="dpad-container">
+            <div></div>
+            <button class="btn-circle" onclick="send('UP')">▲</button>
+            <div></div>
+            <button class="btn-circle" onclick="send('LEFT')">◀</button>
+            <button class="btn-circle btn-ok" onclick="send('SELECT')">OK</button>
+            <button class="btn-circle" onclick="send('RIGHT')">▶</button>
+            <div></div>
+            <button class="btn-circle" onclick="send('DOWN')">▼</button>
+            <div></div>
+        </div>
+
+        <!-- Sistem Tuşları -->
+        <div class="system-row">
+            <button class="btn-rect" onclick="send('BACK')">Geri</button>
+            <button class="btn-rect" onclick="send('HOME')">Ana Sayfa</button>
+        </div>
+
+        <!-- Ses Kontrolleri -->
+        <div class="media-row">
+            <button class="btn-rect" onclick="send('VOL-')">Vol -</button>
+            <button class="btn-rect" onclick="send('MUTE')">Mute</button>
+            <button class="btn-rect" onclick="send('VOL+')">Vol +</button>
+        </div>
+
+        <!-- Uygulama Kısayolları -->
+        <div class="app-shortcuts">
+            <div class="app-btn" onclick="send('MENU')">
+                <img class="app-icon" src="https://img.icons8.com/material-rounded/48/ffffff/menu--v1.png" alt="MN">
+                Menu
+            </div>
+            <div class="app-btn" onclick="toggleVoice('NEXAI_CMD')">
+                <img class="app-icon" src="https://img.icons8.com/fluency/48/000000/artificial-intelligence.png" alt="AI">
+                NexAi
+            </div>
+            <div class="app-btn" onclick="launch('com.google.android.youtube.tv')">
+                <img class="app-icon" src="https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png" alt="YT">
+                YouTube
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let lastCommandTime = 0;
+        const COMMAND_DEBOUNCE = 80; // ms: Daha hızlı tepki için düşürüldü
+        const statusDot = document.getElementById('statusDot');
+        const textInput = document.getElementById('textInput');
+
+        function connect() {
+            // GitHub Pages veya harici hosting desteği için URL'den IP parametresi kontrolü
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetIp = urlParams.get('ip') || window.location.hostname;
+
+            console.log('Connecting to TV at:', targetIp);
+            ws = new WebSocket(`wss://${targetIp}:8888/ws`);
+
+            ws.onopen = () => {
+                console.log('Connected to TV');
+                statusDot.classList.add('status-online');
+            };
+            ws.onclose = () => {
+                statusDot.classList.remove('status-online');
+                setTimeout(connect, 2000);
+            };
+        }
+
+        function send(cmd) {
+            const now = Date.now();
+            if (now - lastCommandTime < COMMAND_DEBOUNCE) return;
+            lastCommandTime = now;
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command: cmd }));
+                if (window.navigator.vibrate) window.navigator.vibrate(25);
+            }
+        }
+
+        function sendText() {
+            if (textInput.value && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command: 'TEXT', text: textInput.value }));
+                textInput.value = '';
+            }
+        }
+
+        function launch(pkg) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command: 'LAUNCH', text: pkg }));
+            }
+        }
+
+        // Voice Recognition (Web Speech API)
+        const micBtn = document.getElementById('micBtn');
+        let recognition;
+        let isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            const userLang = navigator.language || navigator.userLanguage;
+            recognition.lang = userLang.startsWith('tr') ? 'tr-TR' : 'en-US';
+
+            recognition.onstart = () => {
+                micBtn.classList.add('mic-active');
+                if (activeMode === 'NEXAI_CMD') {
+                    // TV'deki paneli de hazırla
+                    ws.send(JSON.stringify({ command: 'NEXAI' }));
+                }
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (activeMode === 'NEXAI_CMD') {
+                    console.log('Sending voice command:', transcript);
+                    ws.send(JSON.stringify({ command: 'NEXAI_CMD', text: transcript }));
+                    // Visual feedback for success
+                    micBtn.style.color = '#44ff44';
+                    setTimeout(() => { micBtn.style.color = ''; }, 1000);
+                } else {
+                    textInput.value = transcript;
+                    sendText();
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech error:', event.error);
+                micBtn.classList.remove('mic-active');
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    // İzin yoksa veya HTTPS değilse TV mikrofonunu tetikle
+                    ws.send(JSON.stringify({ command: 'OPEN_TV_MIC' }));
+                }
+            };
+
+            recognition.onend = () => {
+                micBtn.classList.remove('mic-active');
+            };
+        } else {
+            micBtn.classList.add('mic-error');
+            micBtn.title = "Ses tanıma desteklenmiyor.";
+        }
+
+        let activeMode = 'TEXT';
+        function toggleVoice(mode = 'TEXT') {
+            if (!recognition) {
+                // Tarayıcı desteklemiyorsa doğrudan TV mikrofonunu aç
+                ws.send(JSON.stringify({ command: 'OPEN_TV_MIC' }));
+                return;
+            }
+
+            activeMode = mode;
+
+            try {
+                recognition.start();
+            } catch (e) {
+                // Hata durumunda (zaten çalışıyorsa veya izin yoksa) TV mikrofonuna geç
+                ws.send(JSON.stringify({ command: 'OPEN_TV_MIC' }));
+                recognition.stop();
+            }
+        }
+
+        textInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendText(); });
+        connect();
+
+        const userLang = navigator.language || navigator.userLanguage;
+        if (!userLang.startsWith('tr')) {
+            document.getElementById('remoteTitle').textContent = 'NEXFY RC';
+            textInput.placeholder = 'Type to TV...';
+            document.querySelector('.send-btn').textContent = 'Send';
+        }
+    </script>
+</body>
+</html>
