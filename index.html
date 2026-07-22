@@ -125,6 +125,14 @@
             <button class="send-btn" onclick="sendText()">Yolla</button>
         </div>
 
+        <!-- Bağlantı Hatası Paneli -->
+        <div id="connectionError" style="display:none; background:rgba(255,68,68,0.1); border: 1px solid #ff4444; padding:15px; border-radius:15px; text-align:center; font-size:13px; line-height:1.5;">
+            <b style="color:#ff4444; display:block; margin-bottom:5px;">⚠️ BAĞLANTI HATASI</b>
+            Tarayıcı TV'ye güvenli bağlanamadı.<br>
+            Lütfen aşağıdaki butona basıp açılan sayfada <b>"Gelişmiş" > "Devam et"</b> deyin, sonra buraya dönün.<br>
+            <button onclick="openTestPage()" style="background:#ff4444; color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:bold; margin-top:10px; cursor:pointer;">TV'YE ONAY VER</button>
+        </div>
+
         <!-- Yön Tuşları -->
         <div class="dpad-container">
             <div></div>
@@ -174,12 +182,15 @@
         const COMMAND_DEBOUNCE = 80; // ms: Daha hızlı tepki için düşürüldü
         const statusDot = document.getElementById('statusDot');
         const textInput = document.getElementById('textInput');
+        const connectionError = document.getElementById('connectionError');
+        let targetIp = '';
+        let connectionAttempts = 0;
 
         function connect() {
-            // GitHub Pages veya harici hosting desteği için URL Fragment (#) kontrolü
-            // location.hash, '#' karakteriyle başlar (örn: #192.168.1.50)
+            // GitHub Pages veya harici hosting desteği için URL Fragment (#) veya Query (?) kontrolü
+            const urlParams = new URLSearchParams(window.location.search);
             const hashIp = window.location.hash.substring(1);
-            const targetIp = hashIp || window.location.hostname;
+            targetIp = hashIp || urlParams.get('ip') || window.location.hostname;
 
             console.log('Connecting to TV at:', targetIp);
             ws = new WebSocket(`wss://${targetIp}:8888/ws`);
@@ -187,11 +198,25 @@
             ws.onopen = () => {
                 console.log('Connected to TV');
                 statusDot.classList.add('status-online');
+                connectionError.style.display = 'none';
+                connectionAttempts = 0;
             };
+
+            ws.onerror = () => {
+                connectionAttempts++;
+                if (connectionAttempts >= 2) {
+                    connectionError.style.display = 'block';
+                }
+            };
+
             ws.onclose = () => {
                 statusDot.classList.remove('status-online');
-                setTimeout(connect, 2000);
+                setTimeout(connect, 3000);
             };
+        }
+
+        function openTestPage() {
+            window.open(`https://${targetIp}:8888/test`, '_blank');
         }
 
         function send(cmd) {
