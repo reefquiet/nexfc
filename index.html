@@ -37,22 +37,24 @@
     .btn-circle:active { transform: scale(0.9); background: #252525; }
     .btn-accent { background: var(--accent); color: black; border: none; }
 
-    /* TOUCHPAD AREA (Swapped to Top) */
+    /* TOUCHPAD AREA */
     #touchpad {
       width: 92%;
       max-width: 450px;
-      height: 140px;
+      height: 160px;
       background: #1a1a1a;
       border: 1px solid #333;
       border-radius: 20px;
-      margin: 2px 0 12px 0; /* Yukarı çekildi */
+      margin: 2px 0 12px 0;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
       overflow: hidden;
       flex-shrink: 0;
+      transition: background 0.3s;
     }
+    #touchpad.dragging { background: #2a2a2a; border-color: var(--accent); }
     #touchpad::after {
         content: var(--tp-text, "TOUCHPAD");
         color: rgba(255,255,255,0.1);
@@ -61,16 +63,16 @@
         font-size: 18px;
     }
 
-    /* D-Pad (Swapped to Bottom) */
-    .remote-container { position: relative; width: 250px; height: 250px; margin: 5px 0; flex-shrink: 0; }
+    /* D-Pad */
+    .remote-container { position: relative; width: 220px; height: 220px; margin: 10px 0; flex-shrink: 0; }
     .dpad-bg { width: 100%; height: 100%; background: rgba(255,255,255,0.02); border-radius: 50%; border: 1px solid #333; }
-    .remote-btn { position: absolute; font-size: 48px !important; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 85px; height: 80px; }
+    .remote-btn { position: absolute; font-size: 40px !important; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 70px; height: 70px; }
     .remote-btn:active { transform: scale(0.9); opacity: 0.7; }
-    .up { top: 0; left: 82.5px; }
-    .down { bottom: 0; left: 82.5px; }
-    .left { left: 0; top: 85px; }
-    .right { right: 0; top: 85px; }
-    .enter { top: 80px; left: 80px; width: 90px; height: 90px; background: var(--accent); border-radius: 50%; color: black; font-size: 34px !important; }
+    .up { top: 0; left: 75px; }
+    .down { bottom: 0; left: 75px; }
+    .left { left: 0; top: 75px; }
+    .right { right: 0; top: 75px; }
+    .enter { top: 70px; left: 70px; width: 80px; height: 80px; background: var(--accent); border-radius: 50%; color: black; font-size: 32px !important; }
 
     /* Footer */
     footer { width: 100%; padding: 10px 0; background: rgba(0,0,0,0.3); border-top: 1px solid #333; }
@@ -86,7 +88,7 @@
     .auth-btn { background: #ff4444; color: white; border: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 18px; margin-top: 20px; }
   </style>
 </head>
-<body oncontextmenu="return false;"> <!-- Disable Browser Context Menu -->
+<body oncontextmenu="return false;">
   <div id="errorOverlay">
     <span class="material-icons" style="font-size: 80px; color: #ff4444;">gpp_maybe</span>
     <h2 id="errTitle">CONNECTION ERROR</h2>
@@ -113,10 +115,10 @@
     </div>
   </div>
 
-  <!-- TOUCHPAD AREA (Top) -->
+  <!-- TOUCHPAD AREA -->
   <div id="touchpad"></div>
 
-  <!-- D-Pad (Bottom) -->
+  <!-- D-Pad -->
   <div class="remote-container">
     <div class="dpad-bg"></div>
     <a class="material-icons remote-btn up" href="javascript:send('UP');">keyboard_arrow_up</a>
@@ -162,22 +164,8 @@
     // i18n
     const lang = navigator.language.startsWith('tr') ? 'tr' : 'en';
     const i18n = {
-        tr: {
-            title: "NEXFY KUMANDA",
-            input: "TV'ye yaz...",
-            errTitle: "BAĞLANTI HATASI",
-            errDesc: "Mikrofonun çalışması için TV'ye güvenli bağlantı onayı vermeniz gerekiyor.",
-            btnAuth: "TV'YE ONAY VER",
-            tp: "TOUCHPAD"
-        },
-        en: {
-            title: "NEXFY REMOTE",
-            input: "Type to TV...",
-            errTitle: "CONNECTION ERROR",
-            errDesc: "You need to authorize secure connection for microphone to work.",
-            btnAuth: "AUTHORIZE TV",
-            tp: "TOUCHPAD"
-        }
+        tr: { title: "NEXFY KUMANDA", input: "TV'ye yaz...", errTitle: "BAĞLANTI HATASI", errDesc: "Mikrofonun çalışması için TV'ye güvenli bağlantı onayı vermeniz gerekiyor.", btnAuth: "TV'YE ONAY VER", tp: "TOUCHPAD" },
+        en: { title: "NEXFY REMOTE", input: "Type to TV...", errTitle: "CONNECTION ERROR", errDesc: "You need to authorize secure connection for microphone to work.", btnAuth: "AUTHORIZE TV", tp: "TOUCHPAD" }
     };
 
     function applyLang() {
@@ -205,21 +193,15 @@
 
     function connect() {
       ws = new WebSocket(`wss://${targetIp}:8888/ws`);
-      ws.onopen = () => {
-        statusDot.classList.add('status-online');
-        errorOverlay.style.display = 'none';
-      };
+      ws.onopen = () => { statusDot.classList.add('status-online'); errorOverlay.style.display = 'none'; };
       ws.onerror = () => { errorOverlay.style.display = 'flex'; };
-      ws.onclose = () => {
-        statusDot.classList.remove('status-online');
-        setTimeout(connect, 2000);
-      };
+      ws.onclose = () => { statusDot.classList.remove('status-online'); setTimeout(connect, 2000); };
     }
 
     function send(cmd, text = null) {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ command: cmd, text: text }));
-      } else if (cmd !== 'MOUSE_MOVE' && cmd !== 'MOUSE_CLICK') {
+      } else if (cmd !== 'MOUSE_MOVE' && cmd !== 'MOUSE_CLICK' && !cmd.startsWith('DRAG')) {
         fallbackFrame.src = `http://${targetIp}:8889/controller?action=keyevent&keycode=${cmd.toLowerCase()}`;
       }
       if (window.navigator.vibrate) window.navigator.vibrate(25);
@@ -227,46 +209,42 @@
 
     function setupLongPress() {
         let pressTimer;
+        let startTime;
         okBtn.addEventListener('touchstart', (e) => {
+            startTime = Date.now();
             pressTimer = window.setTimeout(() => {
                 send('SELECT_LONG');
                 if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
+                pressTimer = null;
             }, 600);
         });
         okBtn.addEventListener('touchend', (e) => {
-            clearTimeout(pressTimer);
-            // Eğer uzun basma olmadıysa normal tıkla
-            if (Date.now() - startTime < 600) {
-               // handle in click
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                send('SELECT');
             }
         });
-        // Normal tık işleme
-        okBtn.onclick = () => { send('SELECT'); };
     }
 
     function sendText() {
       const input = document.getElementById('textInput');
-      if (input.value) {
-        send('TEXT', input.value);
-        input.value = '';
-      }
+      if (input.value) { send('TEXT', input.value); input.value = ''; }
     }
 
     function launch(pkg) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        send('LAUNCH', pkg);
-      } else {
-        fallbackFrame.src = `http://${targetIp}:8889/controller?action=startapp&packagename=${pkg}`;
-      }
+      if (ws && ws.readyState === WebSocket.OPEN) { send('LAUNCH', pkg); }
+      else { fallbackFrame.src = `http://${targetIp}:8889/controller?action=startapp&packagename=${pkg}`; }
     }
 
     function authorize() { window.open(`https://${targetIp}:8888/test`, '_blank'); }
 
-    // Touchpad Logic
+    // Touchpad Logic with Drag Support
     function setupTouchpad() {
         let lastX = 0, lastY = 0;
         let totalDist = 0;
         let startTime = 0;
+        let dragTimer;
+        let isDragging = false;
 
         touchpad.addEventListener('touchstart', (e) => {
             const touch = e.touches[0];
@@ -274,49 +252,46 @@
             lastY = touch.clientY;
             totalDist = 0;
             startTime = Date.now();
+            isDragging = false;
+
+            dragTimer = setTimeout(() => {
+                isDragging = true;
+                touchpad.classList.add('dragging');
+                send('DRAG_START');
+            }, 500); // 0.5s basılı tutunca sürükleme başlar
         }, { passive: true });
 
         touchpad.addEventListener('touchmove', (e) => {
             const touch = e.touches[0];
             const dx = touch.clientX - lastX;
             const dy = touch.clientY - lastY;
-
             totalDist += Math.sqrt(dx*dx + dy*dy);
 
             if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-                send('MOUSE_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
+                if (isDragging) {
+                    send('DRAG_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
+                } else {
+                    send('MOUSE_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
+                    // Hareket varsa sürükleme zamanlayıcısını iptal et (normal hareket)
+                    if (totalDist > 10) clearTimeout(dragTimer);
+                }
             }
-
             lastX = touch.clientX;
             lastY = touch.clientY;
         }, { passive: true });
 
         touchpad.addEventListener('touchend', (e) => {
-            const duration = Date.now() - startTime;
-            if (totalDist < 8 && duration < 250) {
-                send('MOUSE_CLICK');
+            clearTimeout(dragTimer);
+            if (isDragging) {
+                send('DRAG_END');
+                touchpad.classList.remove('dragging');
+            } else {
+                const duration = Date.now() - startTime;
+                if (totalDist < 8 && duration < 250) {
+                    send('MOUSE_CLICK');
+                }
             }
         }, { passive: true });
-    }
-
-    // Voice
-    let recognition;
-    let activeMode = 'TEXT';
-    if ('webkitSpeechRecognition' in window) {
-      recognition = new webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.lang = lang === 'tr' ? 'tr-TR' : 'en-US';
-      recognition.onstart = () => { nexAiBtn.classList.add('mic-active'); };
-      recognition.onend = () => { nexAiBtn.classList.remove('mic-active'); };
-      recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        if (activeMode === 'NEXAI_CMD') {
-          send('NEXAI_CMD', text);
-        } else {
-          document.getElementById('textInput').value = text;
-          sendText();
-        }
-      };
     }
 
     function toggleVoice(mode) {
