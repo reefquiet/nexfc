@@ -37,15 +37,15 @@
     .btn-circle:active { transform: scale(0.9); background: #252525; }
     .btn-accent { background: var(--accent); color: black; border: none; }
 
-    /* Touchpad Area (Enlarged and Positioned Above D-Pad) */
+    /* TOUCHPAD AREA (Swapped to Top) */
     #touchpad {
       width: 92%;
       max-width: 450px;
-      height: 160px; /* Biraz daha büyütüldü */
+      height: 140px;
       background: #1a1a1a;
       border: 1px solid #333;
       border-radius: 20px;
-      margin: 10px 0;
+      margin: 2px 0 12px 0; /* Yukarı çekildi */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -61,15 +61,16 @@
         font-size: 18px;
     }
 
-    /* D-Pad (Smaller and Positioned Below Touchpad) */
-    .remote-container { position: relative; width: 180px; height: 180px; margin: 5px 0; flex-shrink: 0; }
+    /* D-Pad (Swapped to Bottom) */
+    .remote-container { position: relative; width: 250px; height: 250px; margin: 5px 0; flex-shrink: 0; }
     .dpad-bg { width: 100%; height: 100%; background: rgba(255,255,255,0.02); border-radius: 50%; border: 1px solid #333; }
-    .remote-btn { position: absolute; font-size: 32px !important; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; }
-    .up { top: 0; left: 60px; }
-    .down { bottom: 0; left: 60px; }
-    .left { left: 0; top: 60px; }
-    .right { right: 0; top: 60px; }
-    .enter { top: 55px; left: 55px; width: 70px; height: 70px; background: var(--accent); border-radius: 50%; color: black; font-size: 24px !important; }
+    .remote-btn { position: absolute; font-size: 48px !important; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 85px; height: 80px; }
+    .remote-btn:active { transform: scale(0.9); opacity: 0.7; }
+    .up { top: 0; left: 82.5px; }
+    .down { bottom: 0; left: 82.5px; }
+    .left { left: 0; top: 85px; }
+    .right { right: 0; top: 85px; }
+    .enter { top: 80px; left: 80px; width: 90px; height: 90px; background: var(--accent); border-radius: 50%; color: black; font-size: 34px !important; }
 
     /* Footer */
     footer { width: 100%; padding: 10px 0; background: rgba(0,0,0,0.3); border-top: 1px solid #333; }
@@ -85,7 +86,7 @@
     .auth-btn { background: #ff4444; color: white; border: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 18px; margin-top: 20px; }
   </style>
 </head>
-<body>
+<body oncontextmenu="return false;"> <!-- Disable Browser Context Menu -->
   <div id="errorOverlay">
     <span class="material-icons" style="font-size: 80px; color: #ff4444;">gpp_maybe</span>
     <h2 id="errTitle">CONNECTION ERROR</h2>
@@ -95,7 +96,7 @@
 
   <div class="header">
     <div id="statusDot" class="status-dot"></div>
-    <span style="font-weight: bold; letter-spacing: 1px;">NEXFY REMOTE</span>
+    <span id="mainTitle" style="font-weight: bold; letter-spacing: 1px;">NEXFY REMOTE</span>
   </div>
 
   <!-- Input & Volume Row -->
@@ -112,15 +113,15 @@
     </div>
   </div>
 
-  <!-- TOUCHPAD AREA (Enlarged and Positioned Above D-Pad) -->
+  <!-- TOUCHPAD AREA (Top) -->
   <div id="touchpad"></div>
 
-  <!-- D-Pad (Shrunken and Positioned Below Touchpad) -->
+  <!-- D-Pad (Bottom) -->
   <div class="remote-container">
     <div class="dpad-bg"></div>
     <a class="material-icons remote-btn up" href="javascript:send('UP');">keyboard_arrow_up</a>
     <a class="material-icons remote-btn left" href="javascript:send('LEFT');">keyboard_arrow_left</a>
-    <a class="material-icons remote-btn enter" href="javascript:send('SELECT');">radio_button_checked</a>
+    <a class="material-icons remote-btn enter" id="okBtn" href="javascript:void(0);">radio_button_checked</a>
     <a class="material-icons remote-btn right" href="javascript:send('RIGHT');">keyboard_arrow_right</a>
     <a class="material-icons remote-btn down" href="javascript:send('DOWN');">keyboard_arrow_down</a>
   </div>
@@ -156,6 +157,7 @@
     const errorOverlay = document.getElementById('errorOverlay');
     const fallbackFrame = document.getElementById('fallbackFrame');
     const touchpad = document.getElementById('touchpad');
+    const okBtn = document.getElementById('okBtn');
 
     // i18n
     const lang = navigator.language.startsWith('tr') ? 'tr' : 'en';
@@ -180,6 +182,7 @@
 
     function applyLang() {
         const t = i18n[lang];
+        document.getElementById('mainTitle').textContent = t.title;
         document.getElementById('textInput').placeholder = t.input;
         document.getElementById('errTitle').textContent = t.errTitle;
         document.getElementById('errDesc').textContent = t.errDesc;
@@ -197,6 +200,7 @@
         connect();
       }
       setupTouchpad();
+      setupLongPress();
     }
 
     function connect() {
@@ -219,6 +223,25 @@
         fallbackFrame.src = `http://${targetIp}:8889/controller?action=keyevent&keycode=${cmd.toLowerCase()}`;
       }
       if (window.navigator.vibrate) window.navigator.vibrate(25);
+    }
+
+    function setupLongPress() {
+        let pressTimer;
+        okBtn.addEventListener('touchstart', (e) => {
+            pressTimer = window.setTimeout(() => {
+                send('SELECT_LONG');
+                if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
+            }, 600);
+        });
+        okBtn.addEventListener('touchend', (e) => {
+            clearTimeout(pressTimer);
+            // Eğer uzun basma olmadıysa normal tıkla
+            if (Date.now() - startTime < 600) {
+               // handle in click
+            }
+        });
+        // Normal tık işleme
+        okBtn.onclick = () => { send('SELECT'); };
     }
 
     function sendText() {
@@ -260,7 +283,7 @@
 
             totalDist += Math.sqrt(dx*dx + dy*dy);
 
-            if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
                 send('MOUSE_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
             }
 
@@ -270,8 +293,7 @@
 
         touchpad.addEventListener('touchend', (e) => {
             const duration = Date.now() - startTime;
-            // EĞER parmak çok hareket etmediyse (12px'den az) ve süre kısaysa TIKLA
-            if (totalDist < 12 && duration < 250) {
+            if (totalDist < 8 && duration < 250) {
                 send('MOUSE_CLICK');
             }
         }, { passive: true });
