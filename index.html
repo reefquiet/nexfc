@@ -41,7 +41,7 @@
     #touchpad {
       width: 92%;
       max-width: 450px;
-      height: 160px;
+      height: 140px;
       background: #1a1a1a;
       border: 1px solid #333;
       border-radius: 20px;
@@ -54,7 +54,7 @@
       flex-shrink: 0;
       transition: background 0.3s;
     }
-    #touchpad.dragging { background: #2a2a2a; border-color: var(--accent); }
+    #touchpad.dragging { background: #311b92; border-color: var(--accent); }
     #touchpad::after {
         content: var(--tp-text, "TOUCHPAD");
         color: rgba(255,255,255,0.1);
@@ -66,13 +66,13 @@
     /* D-Pad */
     .remote-container { position: relative; width: 220px; height: 220px; margin: 10px 0; flex-shrink: 0; }
     .dpad-bg { width: 100%; height: 100%; background: rgba(255,255,255,0.02); border-radius: 50%; border: 1px solid #333; }
-    .remote-btn { position: absolute; font-size: 40px !important; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 70px; height: 70px; }
+    .remote-btn { position: absolute; font-size: 44px !important; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; }
     .remote-btn:active { transform: scale(0.9); opacity: 0.7; }
-    .up { top: 0; left: 75px; }
-    .down { bottom: 0; left: 75px; }
-    .left { left: 0; top: 75px; }
-    .right { right: 0; top: 75px; }
-    .enter { top: 70px; left: 70px; width: 80px; height: 80px; background: var(--accent); border-radius: 50%; color: black; font-size: 32px !important; }
+    .up { top: 0; left: 70px; }
+    .down { bottom: 0; left: 70px; }
+    .left { left: 0; top: 70px; }
+    .right { right: 0; top: 70px; }
+    .enter { top: 65px; left: 65px; width: 90px; height: 90px; background: var(--accent); border-radius: 50%; color: black; font-size: 34px !important; }
 
     /* Footer */
     footer { width: 100%; padding: 10px 0; background: rgba(0,0,0,0.3); border-top: 1px solid #333; }
@@ -209,19 +209,21 @@
 
     function setupLongPress() {
         let pressTimer;
-        let startTime;
+        let startT;
         okBtn.addEventListener('touchstart', (e) => {
-            startTime = Date.now();
+            startT = Date.now();
             pressTimer = window.setTimeout(() => {
                 send('SELECT_LONG');
                 if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
                 pressTimer = null;
-            }, 600);
+            }, 700);
         });
         okBtn.addEventListener('touchend', (e) => {
             if (pressTimer) {
                 clearTimeout(pressTimer);
-                send('SELECT');
+                if (Date.now() - startT < 700) {
+                    send('SELECT');
+                }
             }
         });
     }
@@ -238,11 +240,10 @@
 
     function authorize() { window.open(`https://${targetIp}:8888/test`, '_blank'); }
 
-    // Touchpad Logic with Drag Support
     function setupTouchpad() {
         let lastX = 0, lastY = 0;
         let totalDist = 0;
-        let startTime = 0;
+        let touchStartT = 0;
         let dragTimer;
         let isDragging = false;
 
@@ -251,14 +252,14 @@
             lastX = touch.clientX;
             lastY = touch.clientY;
             totalDist = 0;
-            startTime = Date.now();
+            touchStartT = Date.now();
             isDragging = false;
 
             dragTimer = setTimeout(() => {
                 isDragging = true;
                 touchpad.classList.add('dragging');
                 send('DRAG_START');
-            }, 500); // 0.5s basılı tutunca sürükleme başlar
+            }, 600);
         }, { passive: true });
 
         touchpad.addEventListener('touchmove', (e) => {
@@ -272,8 +273,7 @@
                     send('DRAG_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
                 } else {
                     send('MOUSE_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
-                    // Hareket varsa sürükleme zamanlayıcısını iptal et (normal hareket)
-                    if (totalDist > 10) clearTimeout(dragTimer);
+                    if (totalDist > 15) clearTimeout(dragTimer);
                 }
             }
             lastX = touch.clientX;
@@ -286,8 +286,8 @@
                 send('DRAG_END');
                 touchpad.classList.remove('dragging');
             } else {
-                const duration = Date.now() - startTime;
-                if (totalDist < 8 && duration < 250) {
+                const duration = Date.now() - touchStartT;
+                if (totalDist < 10 && duration < 300) {
                     send('MOUSE_CLICK');
                 }
             }
