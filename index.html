@@ -176,9 +176,10 @@
         const textInput = document.getElementById('textInput');
 
         function connect() {
-            // GitHub Pages veya harici hosting desteği için URL'den IP parametresi kontrolü
-            const urlParams = new URLSearchParams(window.location.search);
-            const targetIp = urlParams.get('ip') || window.location.hostname;
+            // GitHub Pages veya harici hosting desteği için URL Fragment (#) kontrolü
+            // location.hash, '#' karakteriyle başlar (örn: #192.168.1.50)
+            const hashIp = window.location.hash.substring(1);
+            const targetIp = hashIp || window.location.hostname;
 
             console.log('Connecting to TV at:', targetIp);
             ws = new WebSocket(`wss://${targetIp}:8888/ws`);
