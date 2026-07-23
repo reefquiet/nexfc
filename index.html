@@ -250,11 +250,12 @@
 
     function authorize() { window.open(`https://${targetIp}:8888/test`, '_blank'); }
 
-    // Touchpad Logic with Drag Support
+    // Touchpad Logic with Drag & Double Tap Support
     function setupTouchpad() {
         let lastX = 0, lastY = 0;
         let totalDist = 0;
         let touchStartT = 0;
+        let lastClickT = 0;
         let dragTimer;
         let isDragging = false;
 
@@ -293,13 +294,21 @@
 
         touchpad.addEventListener('touchend', (e) => {
             clearTimeout(dragTimer);
+            const now = Date.now();
             if (isDragging) {
                 send('DRAG_END');
                 touchpad.classList.remove('dragging');
             } else {
-                const duration = Date.now() - touchStartT;
+                const duration = now - touchStartT;
                 if (totalDist < 10 && duration < 300) {
-                    send('MOUSE_CLICK');
+                    // Double Tap Check (350ms)
+                    if (now - lastClickT < 350) {
+                        send('SELECT_LONG');
+                        lastClickT = 0; // Reset
+                    } else {
+                        send('MOUSE_CLICK');
+                        lastClickT = now;
+                    }
                 }
             }
         }, { passive: true });
