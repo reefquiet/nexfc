@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no">
+  <title>Nexfy Remote</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #1e1e1e;
+      --accent: #bb86fc;
+      --text: #ffffff;
+      --btn-size: 55px;
+    }
+    html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: space-between; user-select: none; touch-action: none; }
+
+    /* Header */
+    .header { width: 100%; padding: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); font-size: 14px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff4444; }
+    .status-online { background: #44ff44; box-shadow: 0 0 8px #44ff44; }
+
+    /* Input */
+    .input-section { width: 90%; max-width: 400px; margin-top: 5px; }
+    .input-box { display: flex; background: var(--card); border-radius: 20px; padding: 2px 12px; align-items: center; border: 1px solid #333; }
+    input { flex: 1; background: transparent; border: none; color: white; padding: 8px; font-size: 14px; outline: none; }
+
+    /* Rows */
+    .btn-row { width: 100%; display: flex; justify-content: center; gap: 12px; margin: 5px 0; }
+    .btn-circle {
+      width: var(--btn-size); height: var(--btn-size);
+      background: var(--card); border-radius: 50%; border: 1px solid #333;
+      display: flex; align-items: center; justify-content: center;
+      color: white; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    }
+    .btn-circle:active { transform: scale(0.9); background: #252525; }
+    .btn-accent { background: var(--accent); color: black; border: none; }
+
+    /* TOUCHPAD AREA */
+    #touchpad {
+      width: 92%;
+      max-width: 450px;
+      height: 210px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 20px;
+      margin: 2px 0 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #touchpad.dragging { background: #311b92; border-color: var(--accent); }
+    #touchpad::after {
+        content: var(--tp-text, "TOUCHPAD");
+        color: rgba(255,255,255,0.1);
+        font-weight: bold;
+        letter-spacing: 5px;
+        font-size: 18px;
+    }
+
+    /* D-Pad */
+    .remote-container { position: relative; width: 220px; height: 220px; margin: 10px 0; flex-shrink: 0; }
+    .dpad-bg { width: 100%; height: 100%; background: rgba(255,255,255,0.02); border-radius: 50%; border: 1px solid #333; }
+    .remote-btn { position: absolute; font-size: 40px !important; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 70px; height: 70px; }
+    .remote-btn:active { transform: scale(0.9); opacity: 0.7; }
+    .up { top: 0; left: 72.5px; }
+    .down { bottom: 0; left: 72.5px; }
+    .left { left: 0; top: 72.5px; }
+    .right { right: 0; top: 72.5px; }
+    .enter { top: 65px; left: 65px; width: 90px; height: 90px; background: var(--accent); border-radius: 50%; color: black; font-size: 34px !important; }
+
+    /* Footer */
+    footer { width: 100%; padding: 10px 0; background: rgba(0,0,0,0.3); border-top: 1px solid #333; }
+    footer ul { display: flex; justify-content: space-around; list-style: none; padding: 0; margin: 0; }
+    footer li a { color: white; font-size: 30px; }
+
+    /* Animations */
+    .mic-active { color: #ff4444 !important; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+    /* Error Overlay */
+    #errorOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+    .auth-btn { background: #ff4444; color: white; border: none; padding: 15px 30px; border-radius: 25px; font-weight: bold; font-size: 18px; margin-top: 20px; }
+  </style>
+</head>
+<body oncontextmenu="return false;">
+  <div id="errorOverlay">
+    <span class="material-icons" style="font-size: 80px; color: #ff4444;">gpp_maybe</span>
+    <h2 id="errTitle">CONNECTION ERROR</h2>
+    <p id="errDesc">You need to authorize secure connection for microphone to work.</p>
+    <button class="auth-btn" id="btnAuth" onclick="authorize()">AUTHORIZE TV</button>
+  </div>
+
+  <div class="header">
+    <div id="statusDot" class="status-dot"></div>
+    <span id="mainTitle" style="font-weight: bold; letter-spacing: 1px;">NEXFY REMOTE</span>
+  </div>
+
+  <!-- Row 1: Text Input -->
+  <div class="input-section">
+    <div class="input-box">
+      <input type="text" id="textInput" placeholder="Type to TV...">
+      <span class="material-icons" style="color: var(--accent); cursor: pointer;" onclick="sendText()">send</span>
+    </div>
+  </div>
+
+  <!-- Row 2: Volume -->
+  <div class="btn-row">
+    <div class="btn-circle" onclick="send('VOL-')"><span class="material-icons">volume_down</span></div>
+    <div class="btn-circle" onclick="send('MUTE')"><span class="material-icons">volume_off</span></div>
+    <div class="btn-circle" onclick="send('VOL+')"><span class="material-icons">volume_up</span></div>
+  </div>
+
+  <!-- Row 3: TOUCHPAD -->
+  <div id="touchpad"></div>
+
+  <!-- Row 4: D-Pad -->
+  <div class="remote-container">
+    <div class="dpad-bg"></div>
+    <a class="material-icons remote-btn up" href="javascript:send('UP');">keyboard_arrow_up</a>
+    <a class="material-icons remote-btn left" href="javascript:send('LEFT');">keyboard_arrow_left</a>
+    <a class="material-icons remote-btn enter" id="okBtn" href="javascript:void(0);">radio_button_checked</a>
+    <a class="material-icons remote-btn right" href="javascript:send('RIGHT');">keyboard_arrow_right</a>
+    <a class="material-icons remote-btn down" href="javascript:send('DOWN');">keyboard_arrow_down</a>
+  </div>
+
+  <!-- Row 5: Back | Home | Launcher Settings (3 lines) -->
+  <div class="btn-row">
+    <div class="btn-circle" onclick="send('BACK')"><span class="material-icons">arrow_back</span></div>
+    <div class="btn-circle" onclick="send('HOME')"><span class="material-icons">home</span></div>
+    <div class="btn-circle" onclick="send('LAUNCHER_SETTINGS')"><span class="material-icons">menu</span></div>
+  </div>
+
+  <!-- Row 6: YouTube | NexAi | System Settings (9 dots) -->
+  <div class="btn-row">
+    <div class="btn-circle" onclick="launch('com.google.android.youtube.tv')">
+        <img src="https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png" width="25" alt="YT">
+    </div>
+    <div class="btn-circle btn-accent" id="nexAiBtn" onclick="toggleVoice('NEXAI_CMD')">
+        <span class="material-icons">assistant</span>
+    </div>
+    <div class="btn-circle" onclick="send('SYSTEM_SETTINGS')">
+        <span class="material-icons">apps</span>
+    </div>
+  </div>
+
+  <footer>
+    <ul>
+      <li><a class="material-icons" href="javascript:send('BACK');">arrow_back</a></li>
+      <li><a class="material-icons" href="javascript:send('HOME');">home</a></li>
+      <li><a class="material-icons" href="javascript:send('SYSTEM_SETTINGS');">apps</a></li>
+    </ul>
+  </footer>
+
+  <iframe id="fallbackFrame" style="display:none;"></iframe>
+
+  <script>
+    let ws;
+    let targetIp = '';
+    const statusDot = document.getElementById('statusDot');
+    const nexAiBtn = document.getElementById('nexAiBtn');
+    const errorOverlay = document.getElementById('errorOverlay');
+    const fallbackFrame = document.getElementById('fallbackFrame');
+    const touchpad = document.getElementById('touchpad');
+    const okBtn = document.getElementById('okBtn');
+
+    // i18n
+    const lang = navigator.language.startsWith('tr') ? 'tr' : 'en';
+    const i18n = {
+        tr: { title: "NEXFY KUMANDA", input: "TV'ye yaz...", errTitle: "BAĞLANTI HATASI", errDesc: "Mikrofonun çalışması için TV'ye güvenli bağlantı onayı vermeniz gerekiyor.", btnAuth: "TV'YE ONAY VER", tp: "TOUCHPAD" },
+        en: { title: "NEXFY REMOTE", input: "Type to TV...", errTitle: "CONNECTION ERROR", errDesc: "You need to authorize secure connection for microphone to work.", btnAuth: "AUTHORIZE TV", tp: "TOUCHPAD" }
+    };
+
+    function applyLang() {
+        const t = i18n[lang];
+        document.getElementById('mainTitle').textContent = t.title;
+        document.getElementById('textInput').placeholder = t.input;
+        document.getElementById('errTitle').textContent = t.errTitle;
+        document.getElementById('errDesc').textContent = t.errDesc;
+        document.getElementById('btnAuth').textContent = t.btnAuth;
+        touchpad.style.setProperty('--tp-text', `"${t.tp}"`);
+    }
+
+    function init() {
+      applyLang();
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashIp = window.location.hash.substring(1);
+      targetIp = hashIp || urlParams.get('ip') || localStorage.getItem('last_ip');
+      if (targetIp) {
+        localStorage.setItem('last_ip', targetIp);
+        connect();
+      }
+      setupTouchpad();
+      setupLongPress();
+    }
+
+    function connect() {
+      ws = new WebSocket(`wss://${targetIp}:8888/ws`);
+      ws.onopen = () => { statusDot.classList.add('status-online'); errorOverlay.style.display = 'none'; };
+      ws.onerror = () => { errorOverlay.style.display = 'flex'; };
+      ws.onclose = () => { statusDot.classList.remove('status-online'); setTimeout(connect, 2000); };
+    }
+
+    function send(cmd, text = null) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ command: cmd, text: text }));
+      } else if (cmd !== 'MOUSE_MOVE' && cmd !== 'MOUSE_CLICK' && !cmd.startsWith('DRAG')) {
+        let url = `http://${targetIp}:8889/controller?action=keyevent&keycode=${cmd.toLowerCase()}`;
+        if (cmd === 'NEXAI_CMD') url = `http://${targetIp}:8889/controller?action=nexai&text=${encodeURIComponent(text)}`;
+        fallbackFrame.src = url;
+      }
+      if (window.navigator.vibrate) window.navigator.vibrate(25);
+    }
+
+    function setupLongPress() {
+        let pressTimer;
+        let startT;
+        okBtn.addEventListener('touchstart', (e) => {
+            startT = Date.now();
+            pressTimer = window.setTimeout(() => {
+                send('SELECT_LONG');
+                if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
+                pressTimer = null;
+            }, 800);
+        });
+        okBtn.addEventListener('touchend', (e) => {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                if (Date.now() - startT < 800) {
+                    send('SELECT');
+                }
+            }
+        });
+    }
+
+    function sendText() {
+      const input = document.getElementById('textInput');
+      if (input.value) { send('TEXT', input.value); input.value = ''; }
+    }
+
+    function launch(pkg) {
+      if (ws && ws.readyState === WebSocket.OPEN) { send('LAUNCH', pkg); }
+      else { fallbackFrame.src = `http://${targetIp}:8889/controller?action=startapp&packagename=${pkg}`; }
+    }
+
+    function authorize() { window.open(`https://${targetIp}:8888/test`, '_blank'); }
+
+    // Touchpad Logic with Drag & Robust Double Tap Support
+    let lastClickT = 0;
+    let clickTimeout = null;
+
+    function setupTouchpad() {
+        let lastX = 0, lastY = 0;
+        let totalDist = 0;
+        let touchStartT = 0;
+        let dragTimer;
+        let isDragging = false;
+
+        touchpad.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            lastX = touch.clientX;
+            lastY = touch.clientY;
+            totalDist = 0;
+            touchStartT = Date.now();
+            isDragging = false;
+
+            dragTimer = setTimeout(() => {
+                isDragging = true;
+                touchpad.classList.add('dragging');
+                send('DRAG_START');
+            }, 800);
+        }, { passive: true });
+
+        touchpad.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const dx = touch.clientX - lastX;
+            const dy = touch.clientY - lastY;
+            totalDist += Math.sqrt(dx*dx + dy*dy);
+
+            if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                if (isDragging) {
+                    send('DRAG_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
+                } else {
+                    send('MOUSE_MOVE', `${dx.toFixed(1)},${dy.toFixed(1)}`);
+                    if (totalDist > 15) clearTimeout(dragTimer);
+                }
+            }
+            lastX = touch.clientX;
+            lastY = touch.clientY;
+        }, { passive: true });
+
+        touchpad.addEventListener('touchend', (e) => {
+            clearTimeout(dragTimer);
+            const now = Date.now();
+            if (isDragging) {
+                send('DRAG_END');
+                touchpad.classList.remove('dragging');
+            } else {
+                const duration = now - touchStartT;
+                if (totalDist < 25 && duration < 400) {
+                    // Robust Tap Separation
+                    const gap = now - lastClickT;
+                    if (gap > 40 && gap < 500) {
+                        // Confirmed Double Tap - Stop the first tap!
+                        if (clickTimeout) {
+                            clearTimeout(clickTimeout);
+                            clickTimeout = null;
+                        }
+                        lastClickT = 0; // Prevent triple-tap loops
+                        send('SELECT_LONG');
+                    } else {
+                        // First tap of a potential double-tap
+                        lastClickT = now;
+                        if (clickTimeout) clearTimeout(clickTimeout);
+                        clickTimeout = setTimeout(() => {
+                            send('MOUSE_CLICK');
+                            clickTimeout = null;
+                        }, 450); // Safe delay: must be slightly less than the 500ms threshold
+                    }
+                }
+            }
+        }, { passive: true });
+    }
+
+    // Voice Improvement
+    let recognition;
+    let activeMode = 'TEXT';
+
+    function initVoice() {
+        if (!recognition && 'webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = lang === 'tr' ? 'tr-TR' : 'en-US';
+
+            recognition.onstart = () => { nexAiBtn.classList.add('mic-active'); };
+            recognition.onend = () => { nexAiBtn.classList.remove('mic-active'); };
+
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                if (activeMode === 'NEXAI_CMD') send('NEXAI_CMD', text);
+                else { document.getElementById('textInput').value = text; sendText(); }
+            };
+
+            recognition.onerror = (e) => {
+                nexAiBtn.classList.remove('mic-active');
+                if (e.error === 'not-allowed') send('OPEN_TV_MIC');
+            };
+        }
+    }
+
+    function toggleVoice(mode) {
+        initVoice();
+        if (!recognition) return alert("Speech recognition not supported.");
+
+        activeMode = mode;
+        if (mode === 'NEXAI_CMD' && ws && ws.readyState === WebSocket.OPEN) {
+            send('NEXAI');
+        }
+
+        try {
+            recognition.start();
+        } catch (e) {
+            recognition.stop();
+            setTimeout(() => recognition.start(), 100);
+        }
+    }
+
+    init();
+  </script>
+</body>
+</html>
